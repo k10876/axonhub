@@ -164,6 +164,68 @@ func TestInjectPrompts_WithModelCondition(t *testing.T) {
 	})
 }
 
+func TestInjectPrompts_WithStreamCondition(t *testing.T) {
+	ctx := contexts.WithProjectID(context.Background(), 1)
+
+	prompts := []*ent.Prompt{
+		{
+			ID:      1,
+			Role:    "system",
+			Content: "Streaming only prompt",
+			Settings: objects.PromptSettings{
+				Action: objects.PromptAction{Type: objects.PromptActionTypePrepend},
+				Conditions: []objects.PromptActivationConditionComposite{
+					{
+						Conditions: []objects.PromptActivationCondition{
+							{Type: objects.PromptActivationConditionTypeStream, Stream: lo.ToPtr(true)},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	state := &PersistenceState{
+		PromptProvider: &stubPromptProvider{prompts: prompts},
+	}
+	inbound := &PersistentInboundTransformer{state: state}
+
+	middleware := injectPrompts(inbound)
+
+	t.Run("streaming request gets prompt", func(t *testing.T) {
+		userContent := "Hello"
+		stream := true
+		request := &llm.Request{
+			Model:  "gpt-4",
+			Stream: &stream,
+			Messages: []llm.Message{
+				{Role: "user", Content: llm.MessageContent{Content: &userContent}},
+			},
+		}
+
+		result, err := middleware.OnInboundLlmRequest(ctx, request)
+		require.NoError(t, err)
+		require.Len(t, result.Messages, 2)
+		assert.Equal(t, "Streaming only prompt", *result.Messages[0].Content.Content)
+	})
+
+	t.Run("non-streaming request skips prompt", func(t *testing.T) {
+		userContent := "Hello"
+		stream := false
+		request := &llm.Request{
+			Model:  "gpt-4",
+			Stream: &stream,
+			Messages: []llm.Message{
+				{Role: "user", Content: llm.MessageContent{Content: &userContent}},
+			},
+		}
+
+		result, err := middleware.OnInboundLlmRequest(ctx, request)
+		require.NoError(t, err)
+		require.Len(t, result.Messages, 1)
+	})
+}
+
 func TestInjectPrompts_PrependAndAppend(t *testing.T) {
 	ctx := contexts.WithProjectID(context.Background(), 1)
 

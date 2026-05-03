@@ -1065,6 +1065,7 @@ type ComplexityRoot struct {
 		APIKeyID     func(childComplexity int) int
 		ModelID      func(childComplexity int) int
 		ModelPattern func(childComplexity int) int
+		Stream       func(childComplexity int) int
 		Type         func(childComplexity int) int
 	}
 
@@ -6591,6 +6592,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.PromptActivationCondition.ModelPattern(childComplexity), true
+	case "PromptActivationCondition.stream":
+		if e.complexity.PromptActivationCondition.Stream == nil {
+			break
+		}
+
+		return e.complexity.PromptActivationCondition.Stream(childComplexity), true
 	case "PromptActivationCondition.type":
 		if e.complexity.PromptActivationCondition.Type == nil {
 			break
@@ -35634,6 +35641,35 @@ func (ec *executionContext) fieldContext_PromptActivationCondition_apiKeyId(_ co
 	return fc, nil
 }
 
+func (ec *executionContext) _PromptActivationCondition_stream(ctx context.Context, field graphql.CollectedField, obj *objects.PromptActivationCondition) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PromptActivationCondition_stream,
+		func(ctx context.Context) (any, error) {
+			return obj.Stream, nil
+		},
+		nil,
+		ec.marshalOBoolean2ᚖbool,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_PromptActivationCondition_stream(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PromptActivationCondition",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _PromptActivationConditionComposite_conditions(ctx context.Context, field graphql.CollectedField, obj *objects.PromptActivationConditionComposite) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -35666,6 +35702,8 @@ func (ec *executionContext) fieldContext_PromptActivationConditionComposite_cond
 				return ec.fieldContext_PromptActivationCondition_modelPattern(ctx, field)
 			case "apiKeyId":
 				return ec.fieldContext_PromptActivationCondition_apiKeyId(ctx, field)
+			case "stream":
+				return ec.fieldContext_PromptActivationCondition_stream(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type PromptActivationCondition", field.Name)
 		},
@@ -66531,7 +66569,7 @@ func (ec *executionContext) unmarshalInputPromptActivationConditionInput(ctx con
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"type", "modelId", "modelPattern", "apiKeyId"}
+	fieldsInOrder := [...]string{"type", "modelId", "modelPattern", "apiKeyId", "stream"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -66566,6 +66604,13 @@ func (ec *executionContext) unmarshalInputPromptActivationConditionInput(ctx con
 				return it, err
 			}
 			it.APIKeyID = data
+		case "stream":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("stream"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Stream = data
 		}
 	}
 
@@ -88648,6 +88693,8 @@ func (ec *executionContext) _PromptActivationCondition(ctx context.Context, sel 
 			out.Values[i] = ec._PromptActivationCondition_modelPattern(ctx, field, obj)
 		case "apiKeyId":
 			out.Values[i] = ec._PromptActivationCondition_apiKeyId(ctx, field, obj)
+		case "stream":
+			out.Values[i] = ec._PromptActivationCondition_stream(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

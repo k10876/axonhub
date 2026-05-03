@@ -28,6 +28,9 @@ const (
 
 	// PromptActivationConditionTypeAPIKey is the condition to activate the prompt for the specified API key.
 	PromptActivationConditionTypeAPIKey PromptActivationConditionType = "api_key"
+
+	// PromptActivationConditionTypeStream is the condition to activate the prompt for streaming or non-streaming requests.
+	PromptActivationConditionTypeStream PromptActivationConditionType = "stream"
 )
 
 // PromptActivationCondition is the condition to activate the prompt.
@@ -45,6 +48,9 @@ type PromptActivationCondition struct {
 
 	// APIKeyID is the ID of the API key to activate the prompt.
 	APIKeyID *int `json:"api_key_id,omitempty"`
+
+	// Stream indicates whether the prompt should activate for streaming requests.
+	Stream *bool `json:"stream,omitempty"`
 }
 
 // PromptActivationConditionComposite is the composite condition to activate the prompt.

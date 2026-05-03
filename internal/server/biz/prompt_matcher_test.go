@@ -20,6 +20,7 @@ func TestPromptMatcher_MatchConditions(t *testing.T) {
 		conditions []objects.PromptActivationConditionComposite
 		model      string
 		apiKeyID   int
+		stream     bool
 		expected   bool
 	}{
 		{
@@ -112,6 +113,34 @@ func TestPromptMatcher_MatchConditions(t *testing.T) {
 			},
 			model:    "gpt-4",
 			apiKeyID: 2,
+			expected: false,
+		},
+		{
+			name: "stream match",
+			conditions: []objects.PromptActivationConditionComposite{
+				{
+					Conditions: []objects.PromptActivationCondition{
+						{Type: objects.PromptActivationConditionTypeStream, Stream: lo.ToPtr(true)},
+					},
+				},
+			},
+			model:    "gpt-4",
+			apiKeyID: 0,
+			stream:   true,
+			expected: true,
+		},
+		{
+			name: "stream mismatch",
+			conditions: []objects.PromptActivationConditionComposite{
+				{
+					Conditions: []objects.PromptActivationCondition{
+						{Type: objects.PromptActivationConditionTypeStream, Stream: lo.ToPtr(true)},
+					},
+				},
+			},
+			model:    "gpt-4",
+			apiKeyID: 0,
+			stream:   false,
 			expected: false,
 		},
 		{
@@ -234,7 +263,7 @@ func TestPromptMatcher_MatchConditions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := matcher.MatchConditions(tt.conditions, tt.model, tt.apiKeyID)
+			result := matcher.MatchConditions(tt.conditions, tt.model, tt.apiKeyID, tt.stream)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -248,6 +277,7 @@ func TestPromptMatcher_MatchPrompt(t *testing.T) {
 		prompt   *ent.Prompt
 		model    string
 		apiKeyID int
+		stream   bool
 		expected bool
 	}{
 		{
@@ -314,11 +344,33 @@ func TestPromptMatcher_MatchPrompt(t *testing.T) {
 			apiKeyID: 0,
 			expected: false,
 		},
+		{
+			name: "prompt with matching stream condition",
+			prompt: &ent.Prompt{
+				ID:      4,
+				Role:    "system",
+				Content: "Streaming-only prompt.",
+				Settings: objects.PromptSettings{
+					Action: objects.PromptAction{Type: objects.PromptActionTypePrepend},
+					Conditions: []objects.PromptActivationConditionComposite{
+						{
+							Conditions: []objects.PromptActivationCondition{
+								{Type: objects.PromptActivationConditionTypeStream, Stream: lo.ToPtr(true)},
+							},
+						},
+					},
+				},
+			},
+			model:    "gpt-4",
+			apiKeyID: 0,
+			stream:   true,
+			expected: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := matcher.MatchPrompt(tt.prompt, tt.model, tt.apiKeyID)
+			result := matcher.MatchPrompt(tt.prompt, tt.model, tt.apiKeyID, tt.stream)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -367,24 +419,47 @@ func TestPromptMatcher_FilterMatchingPrompts(t *testing.T) {
 				},
 			},
 		},
+		{
+			ID:      4,
+			Role:    "system",
+			Content: "Prompt 4 - Stream only",
+			Settings: objects.PromptSettings{
+				Action: objects.PromptAction{Type: objects.PromptActionTypePrepend},
+				Conditions: []objects.PromptActivationConditionComposite{
+					{
+						Conditions: []objects.PromptActivationCondition{
+							{Type: objects.PromptActivationConditionTypeStream, Stream: lo.ToPtr(true)},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	t.Run("filter for gpt-4", func(t *testing.T) {
-		result := matcher.FilterMatchingPrompts(prompts, "gpt-4", 0)
+		result := matcher.FilterMatchingPrompts(prompts, "gpt-4", 0, false)
 		require.Len(t, result, 2)
 		assert.Equal(t, 1, result[0].ID)
 		assert.Equal(t, 2, result[1].ID)
 	})
 
 	t.Run("filter for claude-3-opus", func(t *testing.T) {
-		result := matcher.FilterMatchingPrompts(prompts, "claude-3-opus", 0)
+		result := matcher.FilterMatchingPrompts(prompts, "claude-3-opus", 0, false)
 		require.Len(t, result, 2)
 		assert.Equal(t, 1, result[0].ID)
 		assert.Equal(t, 3, result[1].ID)
 	})
 
+	t.Run("filter for gpt-4 streaming", func(t *testing.T) {
+		result := matcher.FilterMatchingPrompts(prompts, "gpt-4", 0, true)
+		require.Len(t, result, 3)
+		assert.Equal(t, 1, result[0].ID)
+		assert.Equal(t, 2, result[1].ID)
+		assert.Equal(t, 4, result[2].ID)
+	})
+
 	t.Run("filter for unknown model", func(t *testing.T) {
-		result := matcher.FilterMatchingPrompts(prompts, "unknown-model", 0)
+		result := matcher.FilterMatchingPrompts(prompts, "unknown-model", 0, false)
 		require.Len(t, result, 1)
 		assert.Equal(t, 1, result[0].ID)
 	})

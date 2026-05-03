@@ -53,7 +53,8 @@ func injectPrompts(inbound *PersistentInboundTransformer) pipeline.Middleware {
 			apiKeyID = apiKey.ID
 		}
 
-		matchingPrompts := matcher.FilterMatchingPrompts(enabledPrompts, llmRequest.Model, apiKeyID)
+		stream := requestStream(llmRequest)
+		matchingPrompts := matcher.FilterMatchingPrompts(enabledPrompts, llmRequest.Model, apiKeyID, stream)
 		if len(matchingPrompts) == 0 {
 			log.Debug(ctx, "no matching prompts for model",
 				log.String("model", llmRequest.Model),
@@ -72,4 +73,12 @@ func injectPrompts(inbound *PersistentInboundTransformer) pipeline.Middleware {
 
 		return llmRequest, nil
 	})
+}
+
+func requestStream(req *llm.Request) bool {
+	if req == nil || req.Stream == nil {
+		return false
+	}
+
+	return *req.Stream
 }

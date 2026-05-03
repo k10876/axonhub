@@ -117,6 +117,12 @@ func (svc *PromptService) ValidatePromptSettings(settings objects.PromptSettings
 					return fmt.Errorf("api_key_id must be greater than 0")
 				}
 			}
+
+			if condition.Type == objects.PromptActivationConditionTypeStream {
+				if condition.Stream == nil {
+					return fmt.Errorf("stream is required when type is stream")
+				}
+			}
 		}
 	}
 

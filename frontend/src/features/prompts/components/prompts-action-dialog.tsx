@@ -19,10 +19,24 @@ import { CreatePromptInput, UpdatePromptInput } from '../data/schema';
 import { useSelectedProjectId } from '@/stores/projectStore';
 import { extractNumberIDAsNumber, buildGUID } from '@/lib/utils';
 
-const conditionSchema = z.object({
-  type: z.enum(['model_id', 'model_pattern', 'api_key']),
-  value: z.string().min(1, 'Condition value is required'),
-});
+const conditionSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('model_id'),
+    value: z.string().min(1, 'Condition value is required'),
+  }),
+  z.object({
+    type: z.literal('model_pattern'),
+    value: z.string().min(1, 'Condition value is required'),
+  }),
+  z.object({
+    type: z.literal('api_key'),
+    value: z.string().min(1, 'Condition value is required'),
+  }),
+  z.object({
+    type: z.literal('stream'),
+    value: z.enum(['true', 'false']),
+  }),
+]);
 
 const conditionGroupSchema = z.object({
   conditions: z.array(conditionSchema).min(1, 'At least one condition is required per group'),
@@ -162,11 +176,12 @@ function ConditionGroup({ groupIndex, form, onRemoveGroup, t, modelOptions, apiK
                            <SelectValue />
                          </SelectTrigger>
                        </FormControl>
-                       <SelectContent>
-                         <SelectItem value='model_id'>{t('prompts.conditionTypes.model_id')}</SelectItem>
-                         <SelectItem value='model_pattern'>{t('prompts.conditionTypes.model_pattern')}</SelectItem>
-                         <SelectItem value='api_key'>{t('prompts.conditionTypes.api_key')}</SelectItem>
-                       </SelectContent>
+                        <SelectContent>
+                          <SelectItem value='model_id'>{t('prompts.conditionTypes.model_id')}</SelectItem>
+                          <SelectItem value='model_pattern'>{t('prompts.conditionTypes.model_pattern')}</SelectItem>
+                          <SelectItem value='api_key'>{t('prompts.conditionTypes.api_key')}</SelectItem>
+                          <SelectItem value='stream'>{t('prompts.conditionTypes.stream')}</SelectItem>
+                        </SelectContent>
                      </Select>
                    </FormItem>
                  )}
@@ -183,11 +198,21 @@ function ConditionGroup({ groupIndex, form, onRemoveGroup, t, modelOptions, apiK
                            modelOptions={modelOptions}
                            portalContainer={dialogContentRef.current}
                          />
-                       ) : conditions?.[conditionIndex]?.type === 'api_key' ? (
-                         <Select onValueChange={field.onChange} value={field.value}>
-                           <SelectTrigger className='h-10 w-full text-xs'>
-                             <SelectValue placeholder={t('prompts.fields.apiKeyPlaceholder')} />
-                           </SelectTrigger>
+                        ) : conditions?.[conditionIndex]?.type === 'stream' ? (
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <SelectTrigger className='h-10 w-full text-xs'>
+                              <SelectValue placeholder={t('prompts.fields.conditionValuePlaceholder')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value='true'>{t('prompts.conditionValues.true')}</SelectItem>
+                              <SelectItem value='false'>{t('prompts.conditionValues.false')}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : conditions?.[conditionIndex]?.type === 'api_key' ? (
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <SelectTrigger className='h-10 w-full text-xs'>
+                              <SelectValue placeholder={t('prompts.fields.apiKeyPlaceholder')} />
+                            </SelectTrigger>
                            <SelectContent>
                              {apiKeyOptions.map((option) => (
                                <SelectItem key={option.value} value={option.value}>
@@ -290,6 +315,8 @@ export function PromptsActionDialog() {
             value = condition.modelId;
           } else if (condition.type === 'model_pattern' && condition.modelPattern) {
             value = condition.modelPattern;
+          } else if (condition.type === 'stream' && condition.stream != null) {
+            value = condition.stream ? 'true' : 'false';
           } else if (condition.type === 'api_key' && condition.apiKeyId != null) {
             // apiKeyId 是数字，需要转换为完整的 GUID 格式以匹配下拉选项
             value = buildGUID('APIKey', String(condition.apiKeyId));
@@ -330,12 +357,15 @@ export function PromptsActionDialog() {
         conditions: group.conditions.map((condition) => {
           if (condition.type === 'model_id') {
             return { type: condition.type, modelId: condition.value };
-          } else if (condition.type === 'model_pattern') {
-            return { type: condition.type, modelPattern: condition.value };
-          } else {
-            const apiKeyId = extractNumberIDAsNumber(condition.value);
-            return { type: condition.type, apiKeyId };
           }
+          if (condition.type === 'model_pattern') {
+            return { type: condition.type, modelPattern: condition.value };
+          }
+          if (condition.type === 'stream') {
+            return { type: condition.type, stream: condition.value === 'true' };
+          }
+          const apiKeyId = extractNumberIDAsNumber(condition.value);
+          return { type: condition.type, apiKeyId };
         })
       })) || [];
 
